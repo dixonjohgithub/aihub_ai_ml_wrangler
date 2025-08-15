@@ -1,0 +1,155 @@
+{
+  "version": "1.0",
+  "generated_at": "2025-08-15T18:00:00Z",
+  "source_file": "transformation_file.csv",
+  "target_file": "mapped_data.csv",
+  "statistics": {
+    "total_rows": 10,
+    "total_columns": 8,
+    "data_quality_score": 0.95,
+    "null_values": 0,
+    "duplicate_rows": 0,
+    "transformation_rules_applied": 7
+  },
+  "transformations": [
+    {
+      "type": "rename_column",
+      "source": "id",
+      "target": "employee_id",
+      "rule": "prefix_with_EMP_and_pad_zeros"
+    },
+    {
+      "type": "rename_column",
+      "source": "name",
+      "target": "full_name",
+      "rule": "direct_mapping"
+    },
+    {
+      "type": "rename_column",
+      "source": "email",
+      "target": "contact_email",
+      "rule": "direct_mapping"
+    },
+    {
+      "type": "rename_column",
+      "source": "age",
+      "target": "years_old",
+      "rule": "direct_mapping"
+    },
+    {
+      "type": "transform_column",
+      "source": "department",
+      "target": "dept_code",
+      "rule": "abbreviate_department_names"
+    },
+    {
+      "type": "rename_column",
+      "source": "salary",
+      "target": "annual_salary",
+      "rule": "direct_mapping"
+    },
+    {
+      "type": "rename_column",
+      "source": "join_date",
+      "target": "start_date",
+      "rule": "direct_mapping"
+    },
+    {
+      "type": "derived_column",
+      "source": "annual_salary",
+      "target": "salary_band",
+      "rule": "categorize_by_salary_ranges"
+    }
+  ],
+  "columns": {
+    "employee_id": {
+      "data_type": "string",
+      "format": "EMP### pattern",
+      "nullable": false,
+      "unique": true
+    },
+    "full_name": {
+      "data_type": "string",
+      "format": "First Last",
+      "nullable": false,
+      "unique": false
+    },
+    "contact_email": {
+      "data_type": "string",
+      "format": "email",
+      "nullable": false,
+      "unique": true
+    },
+    "years_old": {
+      "data_type": "integer",
+      "min_value": 18,
+      "max_value": 65,
+      "nullable": false
+    },
+    "dept_code": {
+      "data_type": "string",
+      "format": "3-letter code",
+      "nullable": false,
+      "valid_values": ["ENG", "MKT", "SAL", "FIN", "HR"]
+    },
+    "annual_salary": {
+      "data_type": "integer",
+      "min_value": 50000,
+      "max_value": 200000,
+      "nullable": false
+    },
+    "start_date": {
+      "data_type": "date",
+      "format": "YYYY-MM-DD",
+      "nullable": false
+    },
+    "salary_band": {
+      "data_type": "string",
+      "format": "category",
+      "nullable": false,
+      "valid_values": ["Junior", "Mid", "Senior", "Executive"]
+    }
+  },
+  "dataTypes": {
+    "string_columns": ["employee_id", "full_name", "contact_email", "dept_code", "start_date", "salary_band"],
+    "numeric_columns": ["years_old", "annual_salary"],
+    "date_columns": ["start_date"],
+    "categorical_columns": ["dept_code", "salary_band"]
+  },
+  "validation_rules": [
+    {
+      "column": "contact_email",
+      "rule": "valid_email_format",
+      "description": "Must be valid email address"
+    },
+    {
+      "column": "annual_salary",
+      "rule": "positive_number",
+      "description": "Must be positive integer"
+    },
+    {
+      "column": "years_old",
+      "rule": "adult_age",
+      "description": "Must be 18 or older"
+    },
+    {
+      "column": "employee_id",
+      "rule": "unique_identifier",
+      "description": "Must be unique across dataset"
+    }
+  ],
+  "quality_metrics": {
+    "completeness": 1.0,
+    "validity": 1.0,
+    "uniqueness": 1.0,
+    "consistency": 0.95,
+    "accuracy": 0.98
+  },
+  "processing_info": {
+    "processor": "AI Hub Data Wrangler",
+    "version": "1.0.0",
+    "processing_time_ms": 1250,
+    "memory_usage_mb": 45.2,
+    "transformation_engine": "pandas+custom_rules"
+  }
+}
