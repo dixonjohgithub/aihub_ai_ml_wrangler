@@ -1,0 +1,45 @@
+{
+  "name": "aihub-ai-ml-wrangler",
+  "version": "1.0.0",
+  "description": "AI Hub AI/ML Wrangler - Statistical data imputation and analysis tool with AI-powered recommendations",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=frontend",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces",
+    "clean": "npm run clean --workspaces",
+    "install:all": "npm install && cd backend && pip install -r requirements.txt",
+    "docker:dev": "docker-compose -f docker-compose.dev.yml up",
+    "docker:prod": "docker-compose -f docker-compose.yml up",
+    "docker:build": "docker-compose build",
+    "docker:down": "docker-compose down"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/[username]/aihub_ai_ml_wrangler.git"
+  },
+  "keywords": [
+    "data-imputation",
+    "ml",
+    "ai",
+    "correlation-analysis",
+    "openai",
+    "data-science",
+    "react",
+    "fastapi",
+    "typescript"
+  ],
+  "author": "AI Hub Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

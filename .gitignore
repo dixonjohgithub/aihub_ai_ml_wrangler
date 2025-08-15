@@ -1,0 +1,249 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual Environments
+venv/
+ENV/
+env/
+.venv
+.ENV
+.env
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# FastAPI
+instance/
+.webassets-cache
+
+# Node.js / React
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+.npm
+.yarn-integrity
+*.tsbuildinfo
+.eslintcache
+
+# React build output
+frontend/build/
+frontend/dist/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+postgres-data/
+
+# Redis
+dump.rdb
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Logs
+*.log
+logs/
+log/
+*.pid
+*.seed
+*.pid.lock
+
+# Testing
+test-results/
+playwright-report/
+playwright/.cache/
+
+# ML/Data files
+*.csv
+!sample_data/*.csv
+*.parquet
+*.pickle
+*.pkl
+*.h5
+*.hdf5
+*.npy
+*.npz
+data/
+!sample_data/
+datasets/
+models/
+*.model
+*.joblib
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.swp
+*.swo
+*.bak
+*.backup
+.~lock.*
+
+# Upload folders
+uploads/
+uploaded_files/
+upload_temp/
+
+# Generated files
+*.pyc
+*.pyo
+__pycache__
+.sass-cache/
+*.css.map
+*.js.map
+*.min.js
+*.min.css
+
+# IDE
+*.sublime-project
+*.sublime-workspace
+nbproject/
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Output files
+output/
+outputs/
+results/
+reports/
+!docs/reports/
+
+# Research pipeline (will be added as submodule)
+research_pipeline/
+research_pipeline_submodule/
+
+# Secrets
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+credentials/
+
+# OpenAI
+.openai/
+openai_cache/
+
+# Monitoring
+.monitoring/
+metrics/
+traces/
+
+# Documentation build
+docs/_build/
+docs/.build/
+site/
+
+# Package files
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# Lock files (keep these for reproducibility)
+!package-lock.json
+!yarn.lock
+!Pipfile.lock
+!poetry.lock
+
+# Project specific
+correlation_matrices/
+imputed_data/
+transformation_logs/
+ml_metadata/
+cache/
+*.cache
