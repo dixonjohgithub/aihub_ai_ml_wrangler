@@ -1,0 +1,11 @@
+employee_id,full_name,contact_email,years_old,dept_code,annual_salary,start_date,salary_band
+EMP001,John Doe,john.doe@company.com,28,ENG,75000,2023-01-15,Mid
+EMP002,Jane Smith,jane.smith@company.com,32,MKT,68000,2022-08-20,Mid
+EMP003,Bob Johnson,bob.johnson@company.com,45,SAL,82000,2021-03-10,Senior
+EMP004,Alice Brown,alice.brown@company.com,29,ENG,77000,2023-05-22,Mid
+EMP005,Charlie Wilson,charlie.wilson@company.com,38,FIN,71000,2022-11-05,Mid
+EMP006,Diana Davis,diana.davis@company.com,26,MKT,64000,2023-07-18,Junior
+EMP007,Frank Miller,frank.miller@company.com,41,ENG,85000,2020-12-01,Senior
+EMP008,Grace Lee,grace.lee@company.com,33,HR,59000,2022-02-28,Junior
+EMP009,Henry Clark,henry.clark@company.com,36,SAL,79000,2021-09-15,Mid
+EMP010,Ivy Martinez,ivy.martinez@company.com,31,FIN,73000,2022-06-12,Mid
