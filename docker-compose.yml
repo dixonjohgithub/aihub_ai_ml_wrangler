@@ -125,7 +125,7 @@ services:
     build:
       context: ./backend
     container_name: aihub_celery_worker_prod
-    command: celery -A celery_app worker --loglevel=info --concurrency=${CELERY_WORKERS:-2}
+    command: celery -A backend.config.celery worker --loglevel=info --concurrency=${CELERY_WORKERS:-2}
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-aihub_user}:${POSTGRES_PASSWORD:-aihub_password}@postgres:5432/${POSTGRES_DB:-aihub_prod}
       - REDIS_URL=redis://redis:6379/0
@@ -145,7 +145,7 @@ services:
     build:
       context: ./backend
     container_name: aihub_celery_beat_prod
-    command: celery -A celery_app beat --loglevel=info
+    command: celery -A backend.config.celery beat --loglevel=info
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-aihub_user}:${POSTGRES_PASSWORD:-aihub_password}@postgres:5432/${POSTGRES_DB:-aihub_prod}
       - REDIS_URL=redis://redis:6379/0
@@ -167,7 +167,7 @@ services:
     build:
       context: ./backend
     container_name: aihub_flower_prod
-    command: celery -A celery_app flower --port=5555
+    command: celery -A backend.config.celery flower --port=5555
     ports:
       - "5555:5555"
     environment:

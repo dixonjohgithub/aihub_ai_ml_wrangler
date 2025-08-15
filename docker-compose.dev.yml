@@ -100,7 +100,7 @@ services:
     build:
       context: ./backend
     container_name: aihub_celery_worker_dev
-    command: celery -A celery_app worker --loglevel=info
+    command: celery -A backend.config.celery worker --loglevel=info
     volumes:
       - ./backend:/app
     environment:
