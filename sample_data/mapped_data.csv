@@ -1,0 +1,11 @@
+employee_id,full_name,years_experience,annual_compensation,business_unit,start_date,performance_score,training_hours
+1,John Doe,5,75000,Engineering,2023-01-15,4.2,120
+2,Jane Smith,8,82000,Marketing,2022-08-20,4.5,95
+3,Bob Johnson,15,95000,Engineering,2021-03-10,4.1,140
+4,Alice Brown,6,68000,HR,2023-02-28,4.3,110
+5,Charlie Wilson,20,105000,Management,2020-12-01,4.7,80
+6,Diana Lee,7,71000,Marketing,2022-11-15,4.0,105
+7,Edward Davis,12,89000,Engineering,2021-07-22,4.4,135
+8,Fiona Garcia,3,62000,HR,2023-05-12,3.9,90
+9,George Miller,18,92000,Engineering,2021-09-30,4.6,150
+10,Helen Chen,9,78000,Marketing,2022-04-18,4.2,100

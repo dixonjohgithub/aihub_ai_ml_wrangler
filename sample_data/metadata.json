@@ -1,0 +1,125 @@
+{
+  "export_metadata": {
+    "export_timestamp": "2025-08-15T17:40:00Z",
+    "source_system": "AI Hub Data Wrangler",
+    "export_version": "2.1.0",
+    "total_records": 10,
+    "file_format": "CSV"
+  },
+  "transformation_summary": {
+    "operations_applied": [
+      {
+        "operation": "column_rename",
+        "from": "id",
+        "to": "employee_id",
+        "applied_at": "2025-08-15T17:35:12Z"
+      },
+      {
+        "operation": "column_rename", 
+        "from": "name",
+        "to": "full_name",
+        "applied_at": "2025-08-15T17:35:13Z"
+      },
+      {
+        "operation": "calculated_field",
+        "name": "years_experience",
+        "formula": "YEAR(NOW()) - YEAR(hire_date)",
+        "applied_at": "2025-08-15T17:35:15Z"
+      },
+      {
+        "operation": "column_rename",
+        "from": "salary",
+        "to": "annual_compensation", 
+        "applied_at": "2025-08-15T17:35:16Z"
+      },
+      {
+        "operation": "column_rename",
+        "from": "department",
+        "to": "business_unit",
+        "applied_at": "2025-08-15T17:35:17Z"
+      },
+      {
+        "operation": "add_field",
+        "name": "performance_score",
+        "data_type": "decimal",
+        "applied_at": "2025-08-15T17:35:20Z"
+      },
+      {
+        "operation": "add_field", 
+        "name": "training_hours",
+        "data_type": "integer",
+        "applied_at": "2025-08-15T17:35:22Z"
+      }
+    ],
+    "total_transformations": 7
+  },
+  "data_quality": {
+    "completeness_score": 0.95,
+    "consistency_score": 0.98,
+    "validity_score": 0.97,
+    "issues_found": [
+      {
+        "type": "missing_value",
+        "column": "performance_score",
+        "count": 0,
+        "severity": "low"
+      }
+    ]
+  },
+  "column_mapping": {
+    "original_columns": ["id", "name", "age", "salary", "department", "hire_date"],
+    "transformed_columns": ["employee_id", "full_name", "years_experience", "annual_compensation", "business_unit", "start_date", "performance_score", "training_hours"],
+    "mapping_rules": {
+      "id": "employee_id",
+      "name": "full_name", 
+      "age": "calculated as years_experience",
+      "salary": "annual_compensation",
+      "department": "business_unit",
+      "hire_date": "start_date"
+    }
+  },
+  "statistics": {
+    "numeric_columns": {
+      "employee_id": {"min": 1, "max": 10, "mean": 5.5, "std": 3.03},
+      "years_experience": {"min": 3, "max": 20, "mean": 10.3, "std": 5.8},
+      "annual_compensation": {"min": 62000, "max": 105000, "mean": 81700, "std": 14200},
+      "performance_score": {"min": 3.9, "max": 4.7, "mean": 4.3, "std": 0.24},
+      "training_hours": {"min": 80, "max": 150, "mean": 113.5, "std": 23.1}
+    },
+    "categorical_columns": {
+      "business_unit": {
+        "unique_values": 4,
+        "distribution": {
+          "Engineering": 4,
+          "Marketing": 3,
+          "HR": 2,
+          "Management": 1
+        }
+      }
+    }
+  },
+  "validation_rules": {
+    "employee_id": {
+      "required": true,
+      "unique": true,
+      "data_type": "integer"
+    },
+    "full_name": {
+      "required": true,
+      "data_type": "string",
+      "max_length": 100
+    },
+    "annual_compensation": {
+      "required": true,
+      "data_type": "integer",
+      "min_value": 0,
+      "max_value": 500000
+    },
+    "performance_score": {
+      "required": false,
+      "data_type": "decimal",
+      "min_value": 1.0,
+      "max_value": 5.0
+    }
+  }
+}
