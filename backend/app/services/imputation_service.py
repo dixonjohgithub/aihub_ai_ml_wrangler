@@ -2,18 +2,15 @@
 File: imputation_service.py
 
 Overview:
-Comprehensive imputation service implementing multiple imputation strategies
-for handling missing data in datasets.
+Imputation service using research_pipeline for consistency.
 
 Purpose:
-Provides statistical and ML-based imputation methods with quality metrics
-and validation capabilities.
+Provides imputation methods through research_pipeline integration.
 
 Dependencies:
+- research_pipeline: Core imputation functionality
 - pandas: Data manipulation
 - numpy: Numerical operations
-- scikit-learn: ML imputation methods
-- scipy: Statistical functions
 
 Last Modified: 2025-08-15
 Author: Claude
@@ -26,12 +23,16 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 import logging
 from datetime import datetime
-from sklearn.impute import SimpleImputer, KNNImputer
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.experimental import enable_iterative_imputer
-from sklearn.impute import IterativeImputer
-from scipy import stats
 import json
+
+# Import research_pipeline
+try:
+    from app.core.research_pipeline_integration import FeatureImputer, EDA
+except ImportError:
+    import sys
+    sys.path.insert(0, '/Users/johndixon/AI_Hub/research_pipeline')
+    from research_pipeline.feature_imputer import FeatureImputer
+    from research_pipeline.eda import EDA
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,29 @@ class ImputationService:
         self.imputation_history: List[ImputationResult] = []
         self.supported_strategies = list(ImputationStrategy)
     
+    def _classify_columns(self, df: pd.DataFrame) -> Tuple[List[str], List[str], List[str]]:
+        """
+        Classify columns into numeric, binary, and categorical.
+        
+        Returns:
+            Tuple of (numeric_columns, binary_columns, categorical_columns)
+        """
+        numeric_columns = []
+        binary_columns = []
+        categorical_columns = []
+        
+        for col in df.columns:
+            if pd.api.types.is_numeric_dtype(df[col]):
+                unique_vals = df[col].dropna().unique()
+                if len(unique_vals) <= 2 and set(unique_vals).issubset({0, 1}):
+                    binary_columns.append(col)
+                else:
+                    numeric_columns.append(col)
+            else:
+                categorical_columns.append(col)
+        
+        return numeric_columns, binary_columns, categorical_columns
+    
     def impute_dataset(
         self,
         df: pd.DataFrame,
@@ -107,25 +131,30 @@ class ImputationService:
                 validation_warnings = self._validate_config(df, config)
                 warnings.extend(validation_warnings)
             
-            # Select imputation method
-            if config.strategy == ImputationStrategy.MEAN:
-                imputed_df = self._impute_mean(df, config.columns)
-            elif config.strategy == ImputationStrategy.MEDIAN:
-                imputed_df = self._impute_median(df, config.columns)
-            elif config.strategy == ImputationStrategy.MODE:
-                imputed_df = self._impute_mode(df, config.columns)
+            # Map our strategies to research_pipeline methods
+            if config.strategy in [ImputationStrategy.MEAN, ImputationStrategy.MEDIAN, 
+                                  ImputationStrategy.MODE]:
+                # Use research_pipeline's basic imputation
+                imputed_df = self._impute_using_research_pipeline(
+                    df, config.columns, 'basic', config.strategy
+                )
+            elif config.strategy == ImputationStrategy.KNN:
+                # Use research_pipeline's KNN imputation
+                imputed_df = self._impute_using_research_pipeline(
+                    df, config.columns, 'knn', config.strategy, config.parameters
+                )
+            elif config.strategy in [ImputationStrategy.RANDOM_FOREST, ImputationStrategy.MICE]:
+                # Map to research_pipeline's advanced methods
+                method = 'missforest' if config.strategy == ImputationStrategy.RANDOM_FOREST else 'mice'
+                imputed_df = self._impute_using_research_pipeline(
+                    df, config.columns, method, config.strategy, config.parameters
+                )
             elif config.strategy == ImputationStrategy.FORWARD_FILL:
                 imputed_df = self._impute_forward_fill(df, config.columns)
             elif config.strategy == ImputationStrategy.BACKWARD_FILL:
                 imputed_df = self._impute_backward_fill(df, config.columns)
             elif config.strategy == ImputationStrategy.INTERPOLATION:
                 imputed_df = self._impute_interpolation(df, config.columns, config.parameters)
-            elif config.strategy == ImputationStrategy.KNN:
-                imputed_df = self._impute_knn(df, config.columns, config.parameters)
-            elif config.strategy == ImputationStrategy.RANDOM_FOREST:
-                imputed_df = self._impute_random_forest(df, config.columns, config.parameters)
-            elif config.strategy == ImputationStrategy.MICE:
-                imputed_df = self._impute_mice(df, config.columns, config.parameters)
             elif config.strategy == ImputationStrategy.CONSTANT:
                 imputed_df = self._impute_constant(df, config.columns, config.parameters)
             elif config.strategy == ImputationStrategy.DROP:
@@ -196,33 +225,101 @@ class ImputationService:
         
         return warnings
     
-    def _impute_mean(self, df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
-        """Impute using mean values"""
-        df_copy = df.copy()
-        for col in columns:
-            if col in df_copy.columns:
-                mean_value = df_copy[col].mean()
-                df_copy[col].fillna(mean_value, inplace=True)
-        return df_copy
-    
-    def _impute_median(self, df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
-        """Impute using median values"""
-        df_copy = df.copy()
-        for col in columns:
-            if col in df_copy.columns:
-                median_value = df_copy[col].median()
-                df_copy[col].fillna(median_value, inplace=True)
-        return df_copy
-    
-    def _impute_mode(self, df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
-        """Impute using mode values"""
-        df_copy = df.copy()
-        for col in columns:
-            if col in df_copy.columns:
-                mode_value = df_copy[col].mode()
-                if len(mode_value) > 0:
-                    df_copy[col].fillna(mode_value[0], inplace=True)
-        return df_copy
+    def _impute_using_research_pipeline(
+        self, 
+        df: pd.DataFrame, 
+        columns: List[str], 
+        method: str,
+        strategy: ImputationStrategy,
+        parameters: Optional[Dict] = None
+    ) -> pd.DataFrame:
+        """
+        Use research_pipeline's FeatureImputer for imputation.
+        Uses the unified impute_data method from research_pipeline.
+        """
+        # Classify columns
+        numeric_cols, binary_cols, categorical_cols = self._classify_columns(df)
+        
+        # Filter columns to impute based on config
+        if columns:
+            numeric_cols = [c for c in numeric_cols if c in columns]
+            binary_cols = [c for c in binary_cols if c in columns]
+            categorical_cols = [c for c in categorical_cols if c in columns]
+        
+        # Initialize FeatureImputer
+        imputer = FeatureImputer(
+            data=df,
+            numeric_columns=numeric_cols,
+            binary_columns=binary_cols,
+            categorical_columns=categorical_cols
+        )
+        
+        # Map strategy to research_pipeline parameters
+        numeric_strategy = 'mean'
+        if strategy == ImputationStrategy.MEDIAN:
+            numeric_strategy = 'median'
+        elif strategy == ImputationStrategy.MODE:
+            numeric_strategy = 'mode'
+        
+        # Apply imputation using the unified impute_data method
+        try:
+            if method == 'basic':
+                # Use basic imputation strategy
+                imputed_df = imputer.impute_data(
+                    imputation_strategy='basic',
+                    numeric_strategy=numeric_strategy,
+                    is_training=True,
+                    revert_label_encoding=True
+                )
+            elif method == 'knn':
+                # Use KNN imputation
+                n_neighbors = parameters.get('n_neighbors', 5) if parameters else 5
+                imputed_df = imputer.impute_data(
+                    imputation_strategy='knn',
+                    n_neighbors=n_neighbors,
+                    is_training=True,
+                    revert_label_encoding=True
+                )
+            elif method == 'mice':
+                # Use MICE imputation
+                max_iter = parameters.get('max_iter', 10) if parameters else 10
+                imputed_df = imputer.impute_data(
+                    imputation_strategy='mice',
+                    mice_iterations=max_iter,
+                    cat_encoding='label',
+                    is_training=True,
+                    revert_label_encoding=True
+                )
+            elif method == 'missforest':
+                # Use MissForest imputation
+                max_iter = parameters.get('max_iter', 10) if parameters else 10
+                imputed_df = imputer.impute_data(
+                    imputation_strategy='missforest',
+                    mf_max_iter=max_iter,
+                    cat_encoding='label',
+                    is_training=True,
+                    revert_label_encoding=True
+                )
+            else:
+                raise ValueError(f"Unknown research_pipeline method: {method}")
+                
+            return imputed_df
+            
+        except Exception as e:
+            logger.warning(f"Research pipeline imputation failed: {e}. Falling back to simple imputation.")
+            # Fallback to simple imputation
+            df_copy = df.copy()
+            for col in columns:
+                if col in df_copy.columns:
+                    if strategy == ImputationStrategy.MEAN:
+                        df_copy[col].fillna(df_copy[col].mean(), inplace=True)
+                    elif strategy == ImputationStrategy.MEDIAN:
+                        df_copy[col].fillna(df_copy[col].median(), inplace=True)
+                    elif strategy == ImputationStrategy.MODE:
+                        mode_val = df_copy[col].mode()
+                        if len(mode_val) > 0:
+                            df_copy[col].fillna(mode_val[0], inplace=True)
+            return df_copy
     
     def _impute_forward_fill(self, df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
         """Forward fill imputation"""
@@ -251,85 +348,8 @@ class ImputationService:
                 df_copy[col] = df_copy[col].interpolate(method=method)
         return df_copy
     
-    def _impute_knn(self, df: pd.DataFrame, columns: List[str], 
-                   parameters: Dict[str, Any]) -> pd.DataFrame:
-        """KNN imputation"""
-        df_copy = df.copy()
-        n_neighbors = parameters.get('n_neighbors', 5)
-        
-        # Prepare data for imputation
-        numeric_cols = df_copy.select_dtypes(include=[np.number]).columns.tolist()
-        
-        if columns:
-            cols_to_impute = [col for col in columns if col in numeric_cols]
-        else:
-            cols_to_impute = numeric_cols
-        
-        if cols_to_impute:
-            imputer = KNNImputer(n_neighbors=n_neighbors)
-            df_copy[cols_to_impute] = imputer.fit_transform(df_copy[cols_to_impute])
-        
-        return df_copy
-    
-    def _impute_random_forest(self, df: pd.DataFrame, columns: List[str],
-                             parameters: Dict[str, Any]) -> pd.DataFrame:
-        """Random Forest imputation using IterativeImputer"""
-        df_copy = df.copy()
-        
-        # Prepare numeric columns
-        numeric_cols = df_copy.select_dtypes(include=[np.number]).columns.tolist()
-        
-        if columns:
-            cols_to_impute = [col for col in columns if col in numeric_cols]
-        else:
-            cols_to_impute = numeric_cols
-        
-        if cols_to_impute:
-            # Use IterativeImputer with RandomForest as estimator
-            max_iter = parameters.get('max_iter', 10)
-            random_state = parameters.get('random_state', 42)
-            
-            estimator = RandomForestRegressor(
-                n_estimators=parameters.get('n_estimators', 100),
-                random_state=random_state
-            )
-            
-            imputer = IterativeImputer(
-                estimator=estimator,
-                max_iter=max_iter,
-                random_state=random_state
-            )
-            
-            df_copy[cols_to_impute] = imputer.fit_transform(df_copy[cols_to_impute])
-        
-        return df_copy
-    
-    def _impute_mice(self, df: pd.DataFrame, columns: List[str],
-                    parameters: Dict[str, Any]) -> pd.DataFrame:
-        """MICE (Multivariate Imputation by Chained Equations)"""
-        df_copy = df.copy()
-        
-        # Prepare numeric columns
-        numeric_cols = df_copy.select_dtypes(include=[np.number]).columns.tolist()
-        
-        if columns:
-            cols_to_impute = [col for col in columns if col in numeric_cols]
-        else:
-            cols_to_impute = numeric_cols
-        
-        if cols_to_impute:
-            max_iter = parameters.get('max_iter', 10)
-            random_state = parameters.get('random_state', 42)
-            
-            imputer = IterativeImputer(
-                max_iter=max_iter,
-                random_state=random_state,
-                sample_posterior=True
-            )
-            
-            df_copy[cols_to_impute] = imputer.fit_transform(df_copy[cols_to_impute])
-        
-        return df_copy
+    # These methods are now handled by _impute_using_research_pipeline
+    # Keep them as fallbacks for compatibility
     
     def _impute_constant(self, df: pd.DataFrame, columns: List[str],
                         parameters: Dict[str, Any]) -> pd.DataFrame:

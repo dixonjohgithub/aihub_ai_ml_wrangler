@@ -2,18 +2,16 @@
 File: correlation_service.py
 
 Overview:
-Comprehensive correlation analysis service with multiple correlation methods
-and advanced analytics capabilities.
+Comprehensive correlation analysis service using research_pipeline's EDA module.
 
 Purpose:
-Provides correlation analysis, high correlation detection, and feature
-relationship insights for data preprocessing.
+Provides correlation analysis, high correlation detection, VIF calculation,
+and feature relationship insights for data preprocessing.
 
 Dependencies:
+- research_pipeline: Core EDA and correlation functionality
 - pandas: Data manipulation
 - numpy: Numerical operations
-- scipy: Statistical functions
-- networkx: Network analysis for correlation graphs
 
 Last Modified: 2025-08-15
 Author: Claude
@@ -26,10 +24,15 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 import logging
 from datetime import datetime
-from scipy import stats
-from scipy.cluster import hierarchy
-import networkx as nx
 import json
+
+# Import research_pipeline's EDA module
+try:
+    from app.core.research_pipeline_integration import EDA
+except ImportError:
+    import sys
+    sys.path.insert(0, '/Users/johndixon/AI_Hub/research_pipeline')
+    from research_pipeline.eda import EDA
 
 logger = logging.getLogger(__name__)
 
@@ -66,12 +69,14 @@ class CorrelationResult:
 
 class CorrelationAnalyzer:
     """
-    Main class for correlation analysis and feature relationship detection
+    Main class for correlation analysis and feature relationship detection.
+    Uses research_pipeline's EDA module for all correlation calculations.
     """
     
     def __init__(self):
         """Initialize correlation analyzer"""
         self.analysis_history: List[CorrelationResult] = []
+        self.eda_instance: Optional[EDA] = None
     
     def analyze_correlations(
         self,
@@ -91,15 +96,22 @@ class CorrelationAnalyzer:
             Correlation analysis result
         """
         try:
-            # Calculate correlation matrix
-            if config.method == CorrelationType.PEARSON:
-                corr_matrix = self._pearson_correlation(df, config)
-            elif config.method == CorrelationType.SPEARMAN:
-                corr_matrix = self._spearman_correlation(df, config)
-            elif config.method == CorrelationType.KENDALL:
-                corr_matrix = self._kendall_correlation(df, config)
+            # Initialize EDA instance with the dataframe
+            self.eda_instance = EDA(df)
+            
+            # Calculate correlation matrix using research_pipeline
+            if config.method in [CorrelationType.PEARSON, CorrelationType.SPEARMAN, CorrelationType.KENDALL]:
+                method_str = config.method.value
+                corr_matrix = self.eda_instance.get_correlation_matrix(
+                    method=method_str,
+                    include_categorical=config.include_categorical
+                )
+            elif config.method == CorrelationType.CRAMERS_V:
+                # For Cramers V, use categorical correlation
+                corr_matrix = self._calculate_categorical_correlations(df)
             else:
-                corr_matrix = self._pearson_correlation(df, config)
+                # Default to Pearson
+                corr_matrix = self.eda_instance.get_correlation_matrix(method="pearson")
             
             # Find high correlations
             high_correlations = self._find_high_correlations(corr_matrix, config.threshold)
@@ -147,32 +159,47 @@ class CorrelationAnalyzer:
             logger.error(f"Correlation analysis failed: {e}")
             raise
     
-    def _pearson_correlation(self, df: pd.DataFrame, config: CorrelationConfig) -> pd.DataFrame:
-        """Calculate Pearson correlation"""
-        numeric_df = df.select_dtypes(include=[np.number])
+    def _calculate_categorical_correlations(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Calculate correlations for categorical variables using Cramér's V"""
+        categorical_cols = df.select_dtypes(include=['object', 'category']).columns
+        n_cols = len(categorical_cols)
         
-        if config.handle_missing == "pairwise":
-            return numeric_df.corr(method='pearson', min_periods=config.min_periods)
-        else:
-            return numeric_df.dropna().corr(method='pearson')
+        if n_cols == 0:
+            return pd.DataFrame()
+        
+        corr_matrix = pd.DataFrame(np.zeros((n_cols, n_cols)), 
+                                  index=categorical_cols, 
+                                  columns=categorical_cols)
+        
+        for i, col1 in enumerate(categorical_cols):
+            for j, col2 in enumerate(categorical_cols):
+                if i == j:
+                    corr_matrix.iloc[i, j] = 1.0
+                elif j < i:
+                    corr_matrix.iloc[i, j] = corr_matrix.iloc[j, i]
+                else:
+                    try:
+                        cramers_v = self.eda_instance.calculate_cramers_v(col1, col2)
+                        corr_matrix.iloc[i, j] = cramers_v
+                    except Exception as e:
+                        logger.warning(f"Could not calculate Cramér's V for {col1} and {col2}: {e}")
+                        corr_matrix.iloc[i, j] = np.nan
+        
+        return corr_matrix
     
-    def _spearman_correlation(self, df: pd.DataFrame, config: CorrelationConfig) -> pd.DataFrame:
-        """Calculate Spearman correlation"""
-        numeric_df = df.select_dtypes(include=[np.number])
-        
-        if config.handle_missing == "pairwise":
-            return numeric_df.corr(method='spearman', min_periods=config.min_periods)
-        else:
-            return numeric_df.dropna().corr(method='spearman')
+    def calculate_vif(self, df: pd.DataFrame, threshold: float = 10.0) -> Dict[str, float]:
+        """Calculate VIF using research_pipeline's EDA module"""
+        if self.eda_instance is None:
+            self.eda_instance = EDA(df)
+        return self.eda_instance.calculate_vif(threshold)
     
-    def _kendall_correlation(self, df: pd.DataFrame, config: CorrelationConfig) -> pd.DataFrame:
-        """Calculate Kendall correlation"""
-        numeric_df = df.select_dtypes(include=[np.number])
-        
-        if config.handle_missing == "pairwise":
-            return numeric_df.corr(method='kendall', min_periods=config.min_periods)
-        else:
-            return numeric_df.dropna().corr(method='kendall')
+    def detect_multicollinearity(self, df: pd.DataFrame, 
+                                correlation_threshold: float = 0.8,
+                                vif_threshold: float = 10.0) -> Dict[str, Any]:
+        """Detect multicollinearity using research_pipeline's EDA module"""
+        if self.eda_instance is None:
+            self.eda_instance = EDA(df)
+        return self.eda_instance.detect_multicollinearity(correlation_threshold, vif_threshold)
     
     def _find_high_correlations(
         self,
@@ -393,16 +420,28 @@ class CorrelationAnalyzer:
         
         return recommendation
     
+    def export_correlation_csv(self, df: pd.DataFrame, filepath: str, 
+                              method: str = "pearson",
+                              include_categorical: bool = False):
+        """Export correlation matrix to CSV using research_pipeline"""
+        if self.eda_instance is None:
+            self.eda_instance = EDA(df)
+        self.eda_instance.export_correlation_csv(filepath, method, include_categorical)
+        logger.info(f"Correlation matrix exported to {filepath}")
+    
     def correlation_change_analysis(
         self,
         df_before: pd.DataFrame,
         df_after: pd.DataFrame,
         threshold: float = 0.1
     ) -> Dict[str, Any]:
-        """Analyze changes in correlation structure"""
-        # Calculate correlation matrices
-        corr_before = df_before.select_dtypes(include=[np.number]).corr()
-        corr_after = df_after.select_dtypes(include=[np.number]).corr()
+        """Analyze changes in correlation structure using research_pipeline"""
+        # Calculate correlation matrices using research_pipeline
+        eda_before = EDA(df_before)
+        eda_after = EDA(df_after)
+        
+        corr_before = eda_before.get_correlation_matrix()
+        corr_after = eda_after.get_correlation_matrix()
         
         # Find common columns
         common_cols = list(set(corr_before.columns) & set(corr_after.columns))
