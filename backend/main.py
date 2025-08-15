@@ -47,11 +47,15 @@ from backend.app.api.data_preview import router as data_preview_router
 from backend.app.api.upload import router as upload_router
 from backend.app.api.openai_api import router as openai_router
 from backend.app.api.ai_analysis_api import router as ai_analysis_router
+from backend.app.api.imputation_api import router as imputation_router
+from backend.app.api.correlation_api import router as correlation_router
 
 app.include_router(data_preview_router, prefix="/api/data", tags=["data"])
 app.include_router(upload_router, prefix="/api/upload", tags=["upload"])
 app.include_router(openai_router, tags=["openai"])
 app.include_router(ai_analysis_router, tags=["ai-analysis"])
+app.include_router(imputation_router, tags=["imputation"])
+app.include_router(correlation_router, tags=["correlation"])
 
 @app.on_event("startup")
 async def startup_event():
