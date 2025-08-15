@@ -1,0 +1,127 @@
+# Development Docker Compose configuration
+# Use: docker-compose -f docker-compose.dev.yml up
+version: '3.8'
+
+services:
+  # Frontend service (React/Vite with hot reload)
+  frontend:
+    build:
+      context: ./frontend
+      target: development
+    container_name: aihub_frontend_dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules  # Anonymous volume for node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - aihub_network
+    restart: unless-stopped
+
+  # Backend service (FastAPI with auto-reload)
+  backend:
+    build:
+      context: ./backend
+    container_name: aihub_backend_dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - PYTHONPATH=/app
+      - DATABASE_URL=postgresql://aihub_user:aihub_password@postgres:5432/aihub_dev
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=dev_secret_key_change_in_production
+      - DEBUG=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - aihub_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    container_name: aihub_postgres_dev
+    environment:
+      - POSTGRES_DB=aihub_dev
+      - POSTGRES_USER=aihub_user
+      - POSTGRES_PASSWORD=aihub_password
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - aihub_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aihub_user -d aihub_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis cache and message broker
+  redis:
+    image: redis:7-alpine
+    container_name: aihub_redis_dev
+    command: redis-server --requirepass redis_dev_password
+    environment:
+      - REDIS_PASSWORD=redis_dev_password
+    volumes:
+      - redis_dev_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - aihub_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_dev_password", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Celery worker for background tasks
+  celery_worker:
+    build:
+      context: ./backend
+    container_name: aihub_celery_worker_dev
+    command: celery -A celery_app worker --loglevel=info
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgresql://aihub_user:aihub_password@postgres:5432/aihub_dev
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - aihub_network
+    restart: unless-stopped
+
+volumes:
+  postgres_dev_data:
+    name: aihub_postgres_dev_data
+  redis_dev_data:
+    name: aihub_redis_dev_data
+
+networks:
+  aihub_network:
+    name: aihub_dev_network
+    driver: bridge

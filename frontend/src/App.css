@@ -1,0 +1,64 @@
+.App {
+  text-align: center;
+}
+
+.App-header {
+  background-color: #282c34;
+  padding: 20px;
+  color: white;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+}
+
+.health-status {
+  font-size: 1rem;
+  margin: 20px 0;
+  padding: 10px 20px;
+  border-radius: 5px;
+  background: #444;
+}
+
+.health-status .healthy {
+  color: #4CAF50;
+  font-weight: bold;
+}
+
+.health-status .unhealthy {
+  color: #f44336;
+  font-weight: bold;
+}
+
+.features {
+  margin-top: 30px;
+  max-width: 600px;
+}
+
+.features h2 {
+  color: #61dafb;
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+}
+
+.features ul {
+  list-style: none;
+  padding: 0;
+}
+
+.features li {
+  background: #3a3a3a;
+  margin: 10px 0;
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-size: 0.9rem;
+}
+
+.features li:before {
+  content: "✓ ";
+  color: #4CAF50;
+  font-weight: bold;
+  margin-right: 10px;
+}

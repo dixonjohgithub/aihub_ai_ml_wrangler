@@ -1,0 +1,198 @@
+# Production Docker Compose configuration
+# Use: docker-compose up -d
+version: '3.8'
+
+services:
+  # Nginx reverse proxy
+  nginx:
+    build:
+      context: ./nginx
+    container_name: aihub_nginx_prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/ssl:/etc/nginx/ssl:ro  # SSL certificates (if available)
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - aihub_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Frontend service (production build)
+  frontend:
+    build:
+      context: ./frontend
+      target: production
+    container_name: aihub_frontend_prod
+    expose:
+      - "80"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - aihub_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Backend service (production)
+  backend:
+    build:
+      context: ./backend
+    container_name: aihub_backend_prod
+    expose:
+      - "8000"
+    environment:
+      - PYTHONPATH=/app
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-aihub_user}:${POSTGRES_PASSWORD:-aihub_password}@postgres:5432/${POSTGRES_DB:-aihub_prod}
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-change_this_secret_key_in_production}
+      - DEBUG=false
+      - WORKERS=${WORKERS:-4}
+    env_file:
+      - .env.prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - aihub_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    container_name: aihub_postgres_prod
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-aihub_prod}
+      - POSTGRES_USER=${POSTGRES_USER:-aihub_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-aihub_password}
+    env_file:
+      - .env.prod
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./backups:/backups
+    networks:
+      - aihub_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aihub_user} -d ${POSTGRES_DB:-aihub_prod}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis cache and message broker
+  redis:
+    image: redis:7-alpine
+    container_name: aihub_redis_prod
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_prod_password} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-redis_prod_password}
+    env_file:
+      - .env.prod
+    volumes:
+      - redis_prod_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - aihub_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_prod_password}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Celery worker for background tasks
+  celery_worker:
+    build:
+      context: ./backend
+    container_name: aihub_celery_worker_prod
+    command: celery -A celery_app worker --loglevel=info --concurrency=${CELERY_WORKERS:-2}
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-aihub_user}:${POSTGRES_PASSWORD:-aihub_password}@postgres:5432/${POSTGRES_DB:-aihub_prod}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    env_file:
+      - .env.prod
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - aihub_network
+    restart: unless-stopped
+
+  # Celery beat scheduler
+  celery_beat:
+    build:
+      context: ./backend
+    container_name: aihub_celery_beat_prod
+    command: celery -A celery_app beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-aihub_user}:${POSTGRES_PASSWORD:-aihub_password}@postgres:5432/${POSTGRES_DB:-aihub_prod}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    env_file:
+      - .env.prod
+    volumes:
+      - celery_beat_data:/app/celerybeat-schedule
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - aihub_network
+    restart: unless-stopped
+
+  # Flower for monitoring Celery (optional)
+  flower:
+    build:
+      context: ./backend
+    container_name: aihub_flower_prod
+    command: celery -A celery_app flower --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - FLOWER_BASIC_AUTH=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-flower_password}
+    env_file:
+      - .env.prod
+    depends_on:
+      - redis
+    networks:
+      - aihub_network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+volumes:
+  postgres_prod_data:
+    name: aihub_postgres_prod_data
+  redis_prod_data:
+    name: aihub_redis_prod_data
+  celery_beat_data:
+    name: aihub_celery_beat_data
+
+networks:
+  aihub_network:
+    name: aihub_prod_network
+    driver: bridge
