@@ -25,6 +25,8 @@ from enum import Enum
 import logging
 from datetime import datetime
 import json
+from scipy.cluster import hierarchy
+import networkx as nx
 
 # Import research_pipeline's EDA module
 try:
@@ -360,44 +362,6 @@ class CorrelationAnalyzer:
         
         return G
     
-    def detect_multicollinearity(
-        self,
-        df: pd.DataFrame,
-        threshold: float = 0.9
-    ) -> Dict[str, Any]:
-        """Detect multicollinearity issues"""
-        numeric_df = df.select_dtypes(include=[np.number])
-        corr_matrix = numeric_df.corr()
-        
-        # Find highly correlated pairs
-        high_corr_pairs = self._find_high_correlations(corr_matrix, threshold)
-        
-        # Calculate VIF (Variance Inflation Factor) for each feature
-        from statsmodels.stats.outliers_influence import variance_inflation_factor
-        
-        vif_data = pd.DataFrame()
-        vif_data["Feature"] = numeric_df.columns
-        
-        try:
-            vif_data["VIF"] = [
-                variance_inflation_factor(numeric_df.values, i)
-                for i in range(numeric_df.shape[1])
-            ]
-            
-            # Features with VIF > 10 indicate multicollinearity
-            problematic_features = vif_data[vif_data["VIF"] > 10]["Feature"].tolist()
-        except:
-            vif_data = pd.DataFrame()
-            problematic_features = []
-        
-        return {
-            'high_correlation_pairs': high_corr_pairs,
-            'vif_analysis': vif_data.to_dict('records') if not vif_data.empty else [],
-            'problematic_features': problematic_features,
-            'recommendation': self._get_multicollinearity_recommendation(
-                high_corr_pairs, problematic_features
-            )
-        }
     
     def _get_multicollinearity_recommendation(
         self,
