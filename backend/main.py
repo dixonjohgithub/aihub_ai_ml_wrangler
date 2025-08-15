@@ -42,6 +42,13 @@ app = FastAPI(
 cache_service = CacheService()
 db_service = DatabaseService()
 
+# Include routers
+from backend.app.api.data_preview import router as data_preview_router
+from backend.app.api.upload import router as upload_router
+
+app.include_router(data_preview_router, prefix="/api/data", tags=["data"])
+app.include_router(upload_router, prefix="/api/upload", tags=["upload"])
+
 @app.on_event("startup")
 async def startup_event():
     """Application startup event"""
