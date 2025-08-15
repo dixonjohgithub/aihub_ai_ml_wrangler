@@ -45,9 +45,11 @@ db_service = DatabaseService()
 # Include routers
 from backend.app.api.data_preview import router as data_preview_router
 from backend.app.api.upload import router as upload_router
+from backend.app.api.openai_api import router as openai_router
 
 app.include_router(data_preview_router, prefix="/api/data", tags=["data"])
 app.include_router(upload_router, prefix="/api/upload", tags=["upload"])
+app.include_router(openai_router, tags=["openai"])
 
 @app.on_event("startup")
 async def startup_event():
@@ -60,6 +62,9 @@ async def shutdown_event():
     """Application shutdown event"""
     logger.info("Shutting down AI Hub ML Wrangler Backend...")
     await engine.dispose()
+    # Close Redis connection
+    from backend.app.core.deps import close_redis
+    await close_redis()
 
 @app.get("/")
 async def root():
